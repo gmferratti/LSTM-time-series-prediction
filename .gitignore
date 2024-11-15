@@ -1,0 +1,39 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Data files
+data/raw/
+data/processed/
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints
+
+# MLflow
+mlruns/
+
+# Logs
+logs/
+*.log
+
+# PyTorch model
+*.pt
+*.pth
+
+# Ruff cache
+ruff_cache/
