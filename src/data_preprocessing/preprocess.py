@@ -21,11 +21,12 @@ from src.data_preprocessing.constants import (
     BATCH_SIZE,
 )
 
+# Logging
+logger = logging.getLogger(__name__)
 
 def main():
-    # Logging
-    setup_logging()
-    logger = logging.getLogger(__name__)
+
+    PP_PATH = "data/data_preprocessing"
 
     logger.info("Preprocessing data...")
 
@@ -62,8 +63,8 @@ def main():
     train_batches = [(x, y) for x, y in train_loader]
     test_batches = [(x, y) for x, y in test_loader]
 
-    torch.save(train_batches, "data/train_batches.pt")
-    torch.save(test_batches, "data/test_batches.pt")
+    torch.save(train_batches, f"{PP_PATH}/train_batches.pt")
+    torch.save(test_batches, f"{PP_PATH}/test_batches.pt")
 
     logger.info("Data preprocessing completed.")
 

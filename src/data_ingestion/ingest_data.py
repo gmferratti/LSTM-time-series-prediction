@@ -78,23 +78,36 @@ def get_last_date(df: pd.DataFrame) -> datetime:
     return None
 
 
-def download_new_data(
-    symbol: str,
-    start_date: str,
-    end_date: str
-) -> pd.DataFrame:
+def download_new_data(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
     """
-    Baixa novos dados de acoes do Yahoo Finance.
+    Baixa novos dados de ações do Yahoo Finance.
 
     Args:
-        symbol: Simbolo da acao.
-        start_date: Data de inicio.
+        symbol: Símbolo da ação.
+        start_date: Data de início.
         end_date: Data final.
     Returns:
         DataFrame com os novos dados.
     """
-    logger.info(f"Baixando dados de {symbol} de {start_date} ate {end_date}")
-    return yf.download(symbol, start=start_date, end=end_date).reset_index()
+    logger.info(f"Baixando dados de {symbol} de {start_date} até {end_date}")
+    df = yf.download(symbol, start=start_date, end=end_date, progress=False)
+
+    # Resetar o índice para transformar 'Date' em coluna
+    df.reset_index(inplace=True)
+
+    # Achatar os nomes das colunas se forem MultiIndex
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [' '.join(col).strip() for col in df.columns.values]
+
+    # Remover o nome do símbolo ' VIVT3.SA' dos nomes das colunas
+    df.columns = [col.replace(f' {symbol}', '') for col in df.columns]
+    
+    # Manter apenas as colunas necessárias
+    columns_to_keep = ['Date', 'Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+    df = df[columns_to_keep]
+
+    return df
+
 
 
 def append_new_data(
@@ -112,6 +125,13 @@ def append_new_data(
     Returns:
         None
     """
+    # Remove existing index columns if they exist
+    for col in ['level_0', 'index']:
+        if col in existing_df.columns:
+            existing_df.drop(columns=[col], inplace=True)
+        if col in new_df.columns:
+            new_df.drop(columns=[col], inplace=True)
+
     # Resetar o índice para transformar 'Date' em coluna
     existing_df = existing_df.reset_index()
     new_df = new_df.reset_index()
