@@ -155,10 +155,10 @@ def validate_data_continuity(df: pd.DataFrame):
 def main():
 
     SYMBOL = 'VIVT3.SA'
-    PROCESSED_DATA_PATH = 'data/processed/vivo_processed.csv'
+    INGESTED_DATA_PATH = 'data/data_ingestion/vivo_ingested.csv'
 
     # Carregar dados existentes
-    existing_df = load_existing_data(PROCESSED_DATA_PATH)
+    existing_df = load_existing_data(INGESTED_DATA_PATH)
 
     if not existing_df.empty:
         last_date = get_last_date(existing_df)
@@ -181,10 +181,10 @@ def main():
         return
 
     # Appendar novos dados
-    append_new_data(existing_df, new_df, PROCESSED_DATA_PATH)
+    append_new_data(existing_df, new_df, INGESTED_DATA_PATH)
 
     # Recarregar os dados combinados para validação
-    combined_df = load_existing_data(PROCESSED_DATA_PATH)
+    combined_df = load_existing_data(INGESTED_DATA_PATH)
 
     # Validar a continuidade dos dados
     try:
