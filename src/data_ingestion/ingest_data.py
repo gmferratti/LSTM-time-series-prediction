@@ -1,5 +1,6 @@
 import yfinance as yf
 import pandas as pd
+import pandas_market_calendars as mcal
 import os
 from datetime import datetime, timedelta
 import logging
@@ -21,7 +22,7 @@ def load_existing_data(file_path: str) -> pd.DataFrame:
     """
     if os.path.exists(file_path):
         logger.info(f"Carregando dados existentes de {file_path}")
-        return pd.read_csv(file_path, parse_dates=['Date'], index_col='Date')
+        return pd.read_csv(file_path, parse_dates=['Date'])
 
     logger.warning(
         f"Arquivo {file_path} nao encontrado. Criando novo DataFrame.")
@@ -31,7 +32,7 @@ def load_existing_data(file_path: str) -> pd.DataFrame:
 def save_data(
     df: pd.DataFrame,
     file_path: str,
-    format: str = 'parquet'
+    format: str = 'csv'
 ) -> None:
     """
     Salva os dados processados em um arquivo.
@@ -61,39 +62,52 @@ def save_data(
 
 def get_last_date(df: pd.DataFrame) -> datetime:
     """
-    Obtem a ultima data presente no DataFrame.
+    Obtém a última data presente no DataFrame.
 
     Args:
         df: DataFrame com os dados existentes.
     Returns:
-        Ultima data presente no DataFrame.
+        Última data presente no DataFrame.
     """
     if not df.empty:
-        last_date = df.index.max()
-        logger.info(f"Ultima data existente: {last_date}")
+        last_date = df['Date'].max()
+        logger.info(f"Última data existente: {last_date}")
         return last_date
 
-    logger.info("DataFrame vazio. Não há ultima data.")
+    logger.info("DataFrame vazio. Não há última data.")
     return None
 
 
-def download_new_data(
-    symbol: str,
-    start_date: str,
-    end_date: str
-) -> pd.DataFrame:
+def download_new_data(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
     """
-    Baixa novos dados de acoes do Yahoo Finance.
+    Baixa novos dados de ações do Yahoo Finance.
 
     Args:
-        symbol: Simbolo da acao.
-        start_date: Data de inicio.
+        symbol: Símbolo da ação.
+        start_date: Data de início.
         end_date: Data final.
     Returns:
         DataFrame com os novos dados.
     """
-    logger.info(f"Baixando dados de {symbol} de {start_date} ate {end_date}")
-    return yf.download(symbol, start=start_date, end=end_date).reset_index()
+    logger.info(f"Baixando dados de {symbol} de {start_date} até {end_date}")
+    df = yf.download(symbol, start=start_date, end=end_date, progress=False)
+
+    # Resetar o índice para transformar 'Date' em coluna
+    df.reset_index(inplace=True)
+
+    # Achatar os nomes das colunas se forem MultiIndex
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [' '.join(col).strip() for col in df.columns.values]
+
+    # Remover o nome do símbolo ' VIVT3.SA' dos nomes das colunas
+    df.columns = [col.replace(f' {symbol}', '') for col in df.columns]
+    
+    # Manter apenas as colunas necessárias
+    columns_to_keep = ['Date', 'Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+    df = df[columns_to_keep]
+
+    return df
+
 
 
 def append_new_data(
@@ -107,65 +121,77 @@ def append_new_data(
     Args:
         existing_df: DataFrame com os dados existentes.
         new_df: DataFrame com os novos dados.
-        output_path: Caminho para o arquivo CSV de saida.
+        output_path: Caminho para o arquivo CSV de saída.
     Returns:
         None
     """
+    # Remove existing index columns if they exist
+    for col in ['level_0', 'index']:
+        if col in existing_df.columns:
+            existing_df.drop(columns=[col], inplace=True)
+        if col in new_df.columns:
+            new_df.drop(columns=[col], inplace=True)
+
+    # Resetar o índice para transformar 'Date' em coluna
+    existing_df = existing_df.reset_index()
+    new_df = new_df.reset_index()
+
     if existing_df.empty:
         combined_df = new_df
-        logger.info(
-            "DataFrame existente vazio. Utilizando apenas os novos dados.")
+        logger.info("DataFrame existente vazio. Utilizando apenas os novos dados.")
     else:
         combined_df = pd.concat([existing_df, new_df]).drop_duplicates(
             subset=['Date']).sort_values('Date')
         logger.info("Novos dados adicionados ao DataFrame existente.")
 
-    # Reset index e salvar
-    combined_df.reset_index(drop=True, inplace=True)
-    # combined_df.to_csv(output_path, index=False)
+    # Opcionalmente, redefinir 'Date' como índice após remover duplicatas
+    # combined_df.set_index('Date', inplace=True)
+
+    # Salvar os dados
     save_data(combined_df, output_path)
     logger.info(f"Dados atualizados salvos em {output_path}")
 
 
 def validate_data_continuity(df: pd.DataFrame):
     """
-    Valida a continuidade dos dados diarios.
+    Valida a continuidade dos dados de acordo com o calendário de mercado.
 
     :param df: DataFrame com os dados existentes.
     """
-    df = df.sort_index()
-    all_days = pd.date_range(start=df.index.min(
-    ), end=df.index.max(), freq='B')  # 'B' para dias uteis
-    existing_days = df.index
-    missing_days = all_days.difference(existing_days)
+    # Obter o calendário da B3 (Bolsa de Valores do Brasil)
+    b3 = mcal.get_calendar('BVMF')
+    schedule = b3.schedule(start_date=df['Date'].min(), end_date=df['Date'].max())
+    all_days = schedule.index  # Datas em que o mercado esteve aberto
+
+    existing_days = pd.to_datetime(df['Date'])
+    missing_days = set(all_days) - set(existing_days)
     if len(missing_days) == 0:
-        logger.info("Validacao de continuidade dos dados bem-sucedida.")
+        logger.info("Validação de continuidade dos dados bem-sucedida.")
     else:
-        logger.error(
-            f"Faltam dados para as seguintes datas: {missing_days.tolist()}")
-        assert False, f"""Faltam dados para as seguintes datas:
-        {missing_days.tolist()}"""
+        logger.warning(
+            f"Faltam dados para as seguintes datas (mercado aberto): {missing_days}")
 
 
 def main():
-    SYMBOL = 'DIS'
-    PROCESSED_DATA_PATH = 'data/processed/DIS_processed.csv'
+
+    SYMBOL = 'VIVT3.SA'
+    INGESTED_DATA_PATH = 'data/data_ingestion/vivo_ingested.csv'
 
     # Carregar dados existentes
-    existing_df = load_existing_data(PROCESSED_DATA_PATH)
+    existing_df = load_existing_data(INGESTED_DATA_PATH)
 
     if not existing_df.empty:
         last_date = get_last_date(existing_df)
-        # Definir o proximo dia util apos a ultima data
+        # Definir o próximo dia útil após a última data
         start_date = (last_date + timedelta(days=1)).strftime('%Y-%m-%d')
     else:
-        # Se nao houver dados, comecar de uma data inicial
+        # Se não houver dados, começar de uma data inicial
         start_date = '2018-01-01'
 
-    # Data final sera a data atual
+    # Data final será a data atual
     end_date = datetime.today().strftime('%Y-%m-%d')
 
-    logger.info(f"Baixando dados de {start_date} ate {end_date}")
+    logger.info(f"Baixando dados de {start_date} até {end_date}")
 
     # Baixar novos dados
     new_df = download_new_data(SYMBOL, start_date, end_date)
@@ -174,15 +200,11 @@ def main():
         logger.info("Nenhum novo dado para adicionar.")
         return
 
-    # Ajustar DataFrame
-    new_df.set_index('Date', inplace=True)
-
     # Appendar novos dados
-    append_new_data(existing_df, new_df, PROCESSED_DATA_PATH)
+    append_new_data(existing_df, new_df, INGESTED_DATA_PATH)
 
-    # Recarregar os dados combinados para validacao
-    combined_df = load_existing_data(PROCESSED_DATA_PATH)
-    combined_df.set_index('Date', inplace=True)
+    # Recarregar os dados combinados para validação
+    combined_df = load_existing_data(INGESTED_DATA_PATH)
 
     # Validar a continuidade dos dados
     try:
