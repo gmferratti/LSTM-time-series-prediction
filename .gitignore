@@ -39,3 +39,6 @@ logs/
 
 # Ruff cache
 ruff_cache/
+
+# Credentials
+secrets/

@@ -1,0 +1,9 @@
+-r requirements.txt
+jupyter==1.1.1
+jupyterlab==4.2.6
+black==24.10.0
+isort==5.13.2
+ipykernel==6.29.5
+ipywidgets==8.1.5
+seaborn==0.13.2
+tqdm==4.67.0
