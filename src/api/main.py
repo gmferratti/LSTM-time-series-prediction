@@ -32,6 +32,7 @@ class LSTMModel(torch.nn.Module):
         out = self.fc(out[:, -1, :])
         return out
 
+
 class StockData(BaseModel):
     close_prices: List[float]
     volumes: List[float]
@@ -91,8 +92,9 @@ async def predict(data: StockData):
         if len(data.close_prices) != SEQUENCE_LENGTH or len(data.volumes) != SEQUENCE_LENGTH:
             raise HTTPException(
                 status_code=400,
-                detail=f"Entrada deve conter exatamente {
-                    SEQUENCE_LENGTH} pontos de dados"
+                detail=f"""
+                Entrada deve conter exatamente {SEQUENCE_LENGTH} pontos de dados
+                """
             )
 
         # Preparar dados

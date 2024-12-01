@@ -49,7 +49,6 @@ deploy-api:
 		--platform managed \
 		--region $(REGION) \
 		--allow-unauthenticated \
-		--memory 512Mi \
 		--min-instances 1
 
 # Rodar API localmente para testes
@@ -69,9 +68,14 @@ clean:
 	docker rmi stock-pred-api $(API_IMAGE) || true
 
 # Testar API local com exemplo
-test-api:
+test-local-api:
 	curl -X POST http://localhost:8080/predict \
 		-H "Content-Type: application/json" \
 		-d @examples/test_request.json
 
-.PHONY: setup create-bucket train mlflow-ui create-repo build-api deploy-api run-api-local auth-gcloud deploy-all clean test-api
+test-api:
+	curl -X POST https://stock-pred-api-426705406065.southamerica-east1.run.app/predict \
+		-H "Content-Type: application/json" \
+		-d @examples/test_request.json
+
+.PHONY: setup create-bucket train mlflow-ui create-repo build-api deploy-api run-api-local auth-gcloud deploy-all clean test-local-api test-api

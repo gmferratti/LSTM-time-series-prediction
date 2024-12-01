@@ -2,8 +2,7 @@
 name = "lstm-time-series-prediction"
 version = "0.1.0"
 description = "Modelo preditivo de LSTM para previsão de preços de ações utilizando PyTorch."
-readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 
 
 [build-system]
@@ -17,7 +16,7 @@ exclude = ["__init__.py", "notebooks/"]
 
 [tool.black]
 line-length = 102
-target-version = ['py312']
+target-version = ['py310']
 include = '\.pyi?$'
 exclude = '''
 /(
