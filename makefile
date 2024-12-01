@@ -36,6 +36,25 @@ create-repo:
 		--location=$(REGION) \
 		--description="ML containers repository"
 
+
+# Rodar API localmente para testes
+run-api-local:
+	uvicorn src.api.main:app --reload --host 0.0.0.0 --port 
+	
+
+# Build container localmente
+build-container-local:
+	docker build -t stock-pred-api:latest -f Dockerfiles/api/Dockerfile .
+
+# Rodar container localmente
+run-container-local:
+	docker run --platform linux/amd64 -p 8080:8080 stock-pred-api:latest 
+
+# Autenticar no GCP usando a service account
+auth-gcloud:
+	gcloud auth activate-service-account --key-file=secrets/key.json
+	gcloud auth configure-docker $(REGION)-docker.pkg.dev
+
 # Build e push da API
 build-api:
 	docker build -t stock-pred-api -f Dockerfiles/api/Dockerfile .
@@ -51,21 +70,8 @@ deploy-api:
 		--allow-unauthenticated \
 		--min-instances 1
 
-# Rodar API localmente para testes
-run-api-local:
-	uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8080
-
-# Autenticar no GCP usando a service account
-auth-gcloud:
-	gcloud auth activate-service-account --key-file=secrets/key.json
-	gcloud auth configure-docker $(REGION)-docker.pkg.dev
-
 # Build e deploy completo
 deploy-all: auth-gcloud create-repo build-api deploy-api
-
-# Limpar imagens locais
-clean:
-	docker rmi stock-pred-api $(API_IMAGE) || true
 
 # Testar API local com exemplo
 test-local-api:

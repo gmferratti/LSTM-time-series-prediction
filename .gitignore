@@ -33,9 +33,6 @@ mlruns/
 logs/
 *.log
 
-# PyTorch model
-*.pt
-*.pth
 
 # Ruff cache
 ruff_cache/

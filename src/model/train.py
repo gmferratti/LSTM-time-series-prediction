@@ -34,7 +34,13 @@ class TimeSeriesDataset(Dataset):
 class LSTMModel(nn.Module):
     """Modelo LSTM para previsão de séries temporais."""
 
-    def __init__(self, input_size: int, hidden_size: int, num_layers: int, output_size: int):
+    def __init__(
+        self,
+        input_size: int,
+        hidden_size: int,
+        num_layers: int,
+        output_size: int
+    ):
         super(LSTMModel, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -54,25 +60,27 @@ class LSTMModel(nn.Module):
         return out
 
 
-def get_stock_data(start_date: str = '2018-01-01') -> pd.DataFrame:
+def get_stock_data(start_date: str = "2018-01-01") -> pd.DataFrame:
     """Baixa os dados históricos de preços da ação."""
-    end_date = datetime.today().strftime('%Y-%m-%d')
+    end_date = datetime.today().strftime("%Y-%m-%d")
 
     df = (
-        yf.download('VIVT3.SA', start=start_date,
-                    end=end_date, group_by='column')
+        yf.download("VIVT3.SA", start=start_date,
+                    end=end_date, group_by="column")
         .reset_index()
         .droplevel(level=1, axis=1)
     )
-    df = df[['Date', 'Close', 'Volume']]
+    df = df[["Date", "Close", "Volume"]]
 
     return df
 
 
-def prepare_sequences(data: pd.DataFrame, seq_length: int = 10) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, MinMaxScaler]:
+def prepare_sequences(
+    data: pd.DataFrame, seq_length: int = 10
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, MinMaxScaler]:
     """Prepara sequências de dados para treino do modelo LSTM."""
     # Selecionar features
-    features = data[['Close', 'Volume']].values
+    features = data[["Close", "Volume"]].values
 
     # Dividir em treino e validação
     train_size = int(len(features) * 0.8)
@@ -87,34 +95,40 @@ def prepare_sequences(data: pd.DataFrame, seq_length: int = 10) -> Tuple[np.ndar
     # Preparar sequências
     X_train, y_train = [], []
     for i in range(len(scaled_train) - seq_length):
-        X_train.append(scaled_train[i:(i + seq_length)])
+        X_train.append(scaled_train[i: (i + seq_length)])
         y_train.append(scaled_train[i + seq_length, 0])
 
     X_val, y_val = [], []
     for i in range(len(scaled_val) - seq_length):
-        X_val.append(scaled_val[i:(i + seq_length)])
+        X_val.append(scaled_val[i: (i + seq_length)])
         y_val.append(scaled_val[i + seq_length, 0])
 
-    return np.array(X_train), np.array(y_train), np.array(X_val), np.array(y_val), scaler
+    return (
+        np.array(X_train),
+        np.array(y_train),
+        np.array(X_val),
+        np.array(y_val),
+        scaler
+    )
 
 
 def save_to_gcs(bucket_name: str, model: nn.Module, scaler) -> None:
     """Salva modelo e scaler no Google Cloud Storage."""
     # Salvar localmente primeiro
-    torch.save(model.state_dict(), 'model.pth')
-    joblib.dump(scaler, 'scaler.pkl')
+    torch.save(model.state_dict(), "model.pth")
+    joblib.dump(scaler, "scaler.pkl")
 
     # Upload para GCS
     storage_client = storage.Client()
     bucket = storage_client.bucket(bucket_name)
 
     # Upload modelo
-    model_blob = bucket.blob('model.pth')
-    model_blob.upload_from_filename('model.pth')
+    model_blob = bucket.blob("model.pth")
+    model_blob.upload_from_filename("model.pth")
 
     # Upload scaler
-    scaler_blob = bucket.blob('scaler.pkl')
-    scaler_blob.upload_from_filename('scaler.pkl')
+    scaler_blob = bucket.blob("scaler.pkl")
+    scaler_blob.upload_from_filename("scaler.pkl")
 
     logger.info(f"Modelo e scaler salvos no bucket: {bucket_name}")
 
@@ -126,7 +140,7 @@ def train_model(
     criterion: nn.Module,
     optimizer: torch.optim.Optimizer,
     num_epochs: int,
-    device: torch.device
+    device: torch.device,
 ) -> None:
     """Treina o modelo LSTM."""
     for epoch in range(num_epochs):
@@ -156,16 +170,16 @@ def train_model(
         val_loss /= len(val_loader)
 
         if (epoch + 1) % 10 == 0:
-            logger.info(f"""
+            logger.info(
+                f"""
                         Epoch [{epoch+1}/{num_epochs}],
                         Train Loss: {train_loss:.4f},
-                        Val Loss: {val_loss:.4f}""")
+                        Val Loss: {val_loss:.4f}"""
+            )
 
             # Log métricas no MLflow
-            mlflow.log_metrics({
-                "train_loss": train_loss,
-                "val_loss": val_loss
-            }, step=epoch)
+            mlflow.log_metrics(
+                {"train_loss": train_loss, "val_loss": val_loss}, step=epoch)
 
 
 def main():
@@ -183,13 +197,15 @@ def main():
 
     with mlflow.start_run():
         # Log parâmetros
-        mlflow.log_params({
-            "sequence_length": SEQUENCE_LENGTH,
-            "hidden_size": HIDDEN_SIZE,
-            "num_layers": NUM_LAYERS,
-            "batch_size": BATCH_SIZE,
-            "learning_rate": LEARNING_RATE
-        })
+        mlflow.log_params(
+            {
+                "sequence_length": SEQUENCE_LENGTH,
+                "hidden_size": HIDDEN_SIZE,
+                "num_layers": NUM_LAYERS,
+                "batch_size": BATCH_SIZE,
+                "learning_rate": LEARNING_RATE,
+            }
+        )
 
         # Preparar dados
         df = get_stock_data()
@@ -205,7 +221,7 @@ def main():
         val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
 
         # Configurar dispositivo
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Inicializar modelo
         model = LSTMModel(
@@ -219,10 +235,8 @@ def main():
         optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
         # Treinar modelo
-        train_model(
-            model, train_loader, val_loader,
-            criterion, optimizer, NUM_EPOCHS, device
-        )
+        train_model(model, train_loader, val_loader,
+                    criterion, optimizer, NUM_EPOCHS, device)
 
         # Salvar modelo e scaler no GCS
         save_to_gcs(BUCKET_NAME, model, scaler)

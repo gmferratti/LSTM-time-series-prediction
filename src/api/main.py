@@ -13,7 +13,13 @@ logger = logging.getLogger(__name__)
 
 
 class LSTMModel(torch.nn.Module):
-    def __init__(self, input_size: int, hidden_size: int, num_layers: int, output_size: int):
+    def __init__(
+        self,
+        input_size: int,
+        hidden_size: int,
+        num_layers: int,
+        output_size: int
+    ):
         super(LSTMModel, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -89,12 +95,16 @@ model, scaler = load_from_gcs()
 @app.post("/predict", response_model=PredictionResponse)
 async def predict(data: StockData):
     try:
-        if len(data.close_prices) != SEQUENCE_LENGTH or len(data.volumes) != SEQUENCE_LENGTH:
+        if (
+            len(data.close_prices) != SEQUENCE_LENGTH
+            or len(data.volumes) != SEQUENCE_LENGTH
+        ):
             raise HTTPException(
                 status_code=400,
                 detail=f"""
-                Entrada deve conter exatamente {SEQUENCE_LENGTH} pontos de dados
-                """
+                Entrada deve conter exatamente {SEQUENCE_LENGTH}
+                 pontos de dados
+                """,
             )
 
         # Preparar dados
