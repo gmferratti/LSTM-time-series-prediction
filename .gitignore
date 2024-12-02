@@ -8,9 +8,11 @@ wheels/
 __pycache__/
 *.py[cod]
 *$py.class
+.DS_Store
 
 # Virtual environment
 .venv/
+.env/
 env/
 venv/
 ENV/
@@ -31,9 +33,9 @@ mlruns/
 logs/
 *.log
 
-# PyTorch model
-*.pt
-*.pth
 
 # Ruff cache
 ruff_cache/
+
+# Credentials
+secrets/
